@@ -1,0 +1,156 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+  match /round_configs/{docId} {
+      allow read: if request.auth != null;
+      allow write: if false; // Protect it from being changed by users
+    }
+    
+    // --- Rules for the 'users' collection ---
+    match /users/{userId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null 
+                      && request.auth.uid == userId
+                      && isValidUserCreation(request.resource.data);
+      allow update: if request.auth != null 
+                      && request.auth.uid == userId
+                      && isValidUserUpdate(request.resource.data, resource.data);
+      allow delete: if false;
+    }
+    
+    // --- Rules for the 'teams' collection ---
+    match /teams/{teamId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null 
+                      && isValidTeamCreation(request.resource.data);
+      allow update: if request.auth != null 
+                      && isValidTeamUpdate(request.resource.data, resource.data);
+      allow delete: if request.auth != null 
+                      && resource.data.leaderId == request.auth.uid;
+    }
+
+    // This allows authenticated users to read general content
+    match /content/{contentId} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+    
+    // This allows your app to read the main round status toggles
+    match /togglepath/{toggleId} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+
+    // Rules for the main questions collection and their individual toggles
+    match /questions/{questionId} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+
+    match /questionToggles/{docId} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+
+    // Rule for Round 3 Questions
+    match /round3_questions/{questionId} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+
+    // --- ADDED: Rule for Email Allowlist ---
+    // Allow anyone to read the allowlist to check if they can register.
+    // Block everyone from writing to it from the app.
+    match /allowed_emails/{docId} {
+      allow read: if true;
+      allow write: if false; 
+    }
+
+    // Rules for Leaderboard
+    match /featuredTeams/{featuredId} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+
+    match /settings/leaderboard {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+    
+    // Future-proofing Rules
+    match /rounds/{roundId} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+    
+    match /submissions/{submissionId} {
+      allow read: if request.auth != null && 
+                    resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null && 
+                      request.resource.data.userId == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    // --- Helper Functions for Validation ---
+
+    function isAdmin() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    }
+    
+    function isValidUserCreation(data) {
+      return data.keys().hasAll(['username', 'email', 'uid', 'avatar', 'createdAt', 'points']) &&
+             data.uid == request.auth.uid &&
+             data.email == request.auth.token.email &&
+             data.username is string &&
+             data.username.size() >= 2 &&
+             data.username.size() <= 30;
+    }
+    
+    function isValidUserUpdate(newData, oldData) {
+      return newData.uid == oldData.uid &&
+             newData.email == oldData.email &&
+             (newData.username == oldData.username || 
+              (newData.username is string && newData.username.size() >= 2 && newData.username.size() <= 30)) &&
+             (!('teamId' in newData) || newData.teamId is string);
+    }
+    
+    function isValidTeamCreation(data) {
+      return data.keys().hasAll(['id', 'teamName', 'teamCode', 'leaderId', 'members', 'points', 'maxSize', 'createdAt']) &&
+             data.leaderId == request.auth.uid &&
+             data.teamName is string &&
+             data.teamName.size() >= 2 &&
+             data.teamName.size() <= 50 &&
+             data.teamCode is string &&
+             data.teamCode.size() == 6 &&
+             data.teamCode.matches('^[A-Z0-9]+$') &&
+             data.members is list &&
+             data.members.size() == 1 &&
+             data.members[0].uid == request.auth.uid &&
+             data.points is number &&
+             data.points >= 0; 
+    }
+    
+    function isValidTeamUpdate(newData, oldData) {
+      return (
+        // Condition 1: The user making the request is the team leader.
+        (request.auth.uid == oldData.leaderId) ||
+        
+        // Condition 2: A user is joining the team.
+        (newData.members.size() == oldData.members.size() + 1) ||
+        
+        // Condition 3: A user is leaving the team.
+        (newData.members.size() == oldData.members.size() - 1)
+      ) &&
+      
+      // --- These validations apply to ANY update ---
+      newData.teamName == oldData.teamName &&
+      newData.teamCode == oldData.teamCode &&
+      newData.leaderId == oldData.leaderId &&
+      newData.members is list &&
+      newData.members.size() <= newData.maxSize &&
+      newData.points is number &&
+      newData.points >= 0;
+    }
+  }
+}

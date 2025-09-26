@@ -1,0 +1,21 @@
+/* src/index.css */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* KEEP your custom font code below */
+@font-face {
+  font-family: 'HarryP';
+  src: url('/fonts/HarryP-MVZ6w.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* KEEP your custom placeholder styles below */
+input::placeholder,
+textarea::placeholder {
+  font-family: 'HarryP', serif;
+  font-size: 1.5rem; /* Optional: Adjust size */
+}

@@ -5,7 +5,7 @@ The platform enables participants to form teams, compete across five creative an
 
 🔗 Live Website
 
-Visit here: Potternova Website
+Visit here: https://potterova-event.web.app/
 
 🎯 About the Event
 

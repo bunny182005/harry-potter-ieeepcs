@@ -63,18 +63,6 @@ Deployed using Firebase Hosting:
 
 firebase deploy
 
-📁 Project Structure
-├── public/              # Static assets
-├── src/
-│   ├── components/      # UI components
-│   ├── pages/           # Event pages (Home, Rounds, Team, Leaderboard)
-│   ├── firebase.js      # Firebase configuration and setup
-│   ├── App.js           # Main app entry point
-│   └── styles/          # CSS / Tailwind files
-├── package.json
-├── firebase.json
-├── README.md
-└── .gitignore
 
 🏆 Event Flow
 
